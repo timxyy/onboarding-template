@@ -52,10 +52,6 @@ void apply_stencil(const Grid& old_grid, Grid& new_grid) {
       new_grid(i, 0) = old_grid(i, 0);
       new_grid(i, cols - 1) = old_grid(i, cols - 1);
     }
-    for (std::size_t i = 0; i < cols; ++i) {
-      new_grid(0, i) = old_grid(0, i);
-      new_grid(rows - 1, i) = old_grid(rows - 1, i);
-    }
     if (rows < 3 || cols < 3) return;
 
     const double* __restrict old_grid_data = old_grid.data();
@@ -66,6 +62,9 @@ void apply_stencil(const Grid& old_grid, Grid& new_grid) {
       std::size_t row = i * stride;
       std::size_t next_row = row + stride;
       std::size_t last_row = row - stride;
+
+      new_grid_data[row] = old_grid_data[row];
+      new_grid_data[row + cols - 1] = old_grid_data[row + cols - 1];
 
     #ifdef _OPENMP
       #pragma omp simd

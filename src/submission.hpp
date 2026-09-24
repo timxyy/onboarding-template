@@ -22,6 +22,8 @@ public:
 
   std::size_t get_rows() const { return rows_; }
   std::size_t get_cols() const { return cols_; }
+  double* data() { return data_.data(); }
+  const double* data() const { return data_.data(); }
 };  
 
 Grid::Grid(std::size_t rows, std::size_t cols) : 
@@ -35,6 +37,8 @@ double Grid::operator()(std::size_t i, std::size_t j) const {
   return data_[i * cols_ + j];
 }
 
+
+
 // Apply the five-point stencil over all interior points, copying the boundary
 // values unchanged from old_grid to new_grid. Implement your solution here.
 void apply_stencil(const Grid& old_grid, Grid& new_grid);
@@ -42,6 +46,7 @@ void apply_stencil(const Grid& old_grid, Grid& new_grid);
 void apply_stencil(const Grid& old_grid, Grid& new_grid) {
     std::size_t rows = old_grid.get_rows();
     std::size_t cols = old_grid.get_cols();
+    std::size_t stride = cols;
 
     for (std::size_t i = 0; i < rows; ++i) {
       new_grid(i, 0) = old_grid(i, 0);
@@ -51,15 +56,22 @@ void apply_stencil(const Grid& old_grid, Grid& new_grid) {
       new_grid(0, i) = old_grid(0, i);
       new_grid(rows - 1, i) = old_grid(rows - 1, i);
     }
-    
     if (rows < 3 || cols < 3) return;
 
-    for (std::size_t i = 1; i < rows - 1; ++i) {
-        for (std::size_t j = 1; j < cols - 1; ++j) {
-          new_grid(i, j) = 0.5  * old_grid(i, j) +
-          0.125 * (old_grid(i-1, j) + old_grid(i+1, j) +
-                    old_grid(i, j-1) + old_grid(i, j+1));
+    const double* __restrict old_grid_data = old_grid.data();
+    double* __restrict new_grid_data = new_grid.data();
 
-        }
+    for (std::size_t i = 1; i < rows - 1; ++i) {
+      std::size_t row = i * stride;
+      std::size_t next_row = row + stride;
+      std::size_t last_row = row - stride;
+
+      #pragma omp simd
+      for (std::size_t j = 1; j < cols - 1; ++j) {
+        new_grid_data[row + j] = 0.5  * old_grid_data[row + j] +
+        0.125 * (old_grid_data[last_row + j] + old_grid_data[next_row + j] +
+                  old_grid_data[row + j - 1] + old_grid_data[row + j + 1]);
+
+      }
     }
 }
